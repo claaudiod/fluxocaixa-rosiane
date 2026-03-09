@@ -216,10 +216,52 @@ document.addEventListener('DOMContentLoaded', () => {
   .toast.toast-c { border-color: rgba(255,77,109,0.3); }
   .toast.toast-e { border-color: rgba(255,77,109,0.5); }
 
+
+  /* LOGIN SCREEN */
+  .login-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .login-screen.hidden { display: none; }
+  .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px 36px; width: 100%; max-width: 400px; position: relative; overflow: hidden; }
+  .login-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)); }
+  .login-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; margin-bottom: 6px; }
+  .login-logo span { color: var(--accent-green); }
+  .login-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 32px; letter-spacing: 1px; }
+  .login-form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .login-form-row label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); }
+  .login-form-row input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 14px; border-radius: 8px; outline: none; transition: border-color 0.2s; width: 100%; }
+  .login-form-row input:focus { border-color: var(--accent-green); }
+  .btn-login { width: 100%; padding: 13px; border: none; border-radius: 8px; background: var(--accent-green); color: #0a0e0f; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+  .btn-login:hover { background: #00ffb3; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,229,160,0.3); }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .login-error { background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.3); color: var(--accent-red); padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-top: 12px; display: none; }
+  .login-footer { text-align: center; margin-top: 24px; font-size: 11px; color: var(--text-muted); }
+  .btn-logout { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 14px; font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .btn-logout:hover { border-color: var(--accent-red); color: var(--accent-red); }
+  .user-info { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+
   footer { border-top: 1px solid var(--border); padding: 18px 0; text-align: center; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
 </style>
 </head>
 <body>
+
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Fluxo<span>Caixa</span></div>
+    <div class="login-sub">Controle Financeiro · Acesso Seguro</div>
+    <div class="login-form-row">
+      <label>E-mail</label>
+      <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="login-form-row">
+      <label>Senha</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-login" id="btnLogin" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-footer">FluxoCaixa · Dados protegidos pelo Firebase 🔒</div>
+  </div>
+</div>
 
 <!-- LOADING -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -235,6 +277,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="sync-status">
           <div class="sync-dot" id="syncDot"></div>
           <span id="syncText">Conectando...</span>
+        </div>
+        
+        <div class="user-info">
+          <span id="userEmail"></span>
+          <button class="btn-logout" onclick="doLogout()">Sair</button>
         </div>
         <div class="month-nav">
           <button class="btn-nav" onclick="changeMonth(-1)">‹</button>
@@ -456,6 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ── FIREBASE CONFIG ────────────────────────────────────────────────
 const firebaseConfig = {
@@ -469,6 +517,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 // ── STATE ──────────────────────────────────────────────────────────
 let appData = {};        // { 'YYYY-MM-DD': [{...}] }
@@ -856,14 +905,68 @@ function showToast(icon, msg, isPos, type='') {
   toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
 }
 
+
+// ── AUTH ───────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('btnLogin');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch(e) {
+    let msg = 'E-mail ou senha incorretos.';
+    if (e.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Tente mais tarde.';
+    if (e.code === 'auth/network-request-failed') msg = 'Erro de conexão. Verifique a internet.';
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+window.doLogin = doLogin;
+
+async function doLogout() {
+  if (!confirm('Deseja sair do sistema?')) return;
+  await signOut(auth);
+}
+window.doLogout = doLogout;
+
+// Enter key on login
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('loginEmail').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('loginPassword').focus();
+  });
+});
+
 // ── INIT ───────────────────────────────────────────────────────────
-const today = todayStr();
-currentDate = today;
-currentMonth = monthOf(today);
-document.getElementById('selectedDate').value = today;
-document.getElementById('selectedDate').addEventListener('change', onDateChange);
-updateMonthLabels();
-startListener(currentMonth);
+onAuthStateChanged(auth, (user) => {
+  const loginScreen = document.getElementById('loginScreen');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (user) {
+    // Logged in
+    loginScreen.classList.add('hidden');
+    document.getElementById('userEmail').textContent = user.email;
+    const today = todayStr();
+    currentDate = today;
+    currentMonth = monthOf(today);
+    document.getElementById('selectedDate').value = today;
+    document.getElementById('selectedDate').addEventListener('change', onDateChange);
+    updateMonthLabels();
+    startListener(currentMonth);
+  } else {
+    // Not logged in
+    loginScreen.classList.remove('hidden');
+    loadingOverlay.classList.add('hidden');
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    appData = {};
+  }
+});
 </script>
 
 <!-- PWA INSTALL BANNER -->
