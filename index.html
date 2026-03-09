@@ -2,8 +2,51 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FluxoCaixa — Controle Financeiro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FluxoCaixa</title>
+
+<!-- PWA -->
+<meta name="application-name" content="FluxoCaixa">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FluxoCaixa">
+<meta name="theme-color" content="#0a0e0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Controle financeiro de vendas e compras">
+
+<!-- PWA Icons (inline SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0e0f'/%3E%3Crect x='40' y='40' width='432' height='432' rx='80' fill='%23111618'/%3E%3Ctext x='256' y='300' font-size='220' text-anchor='middle' font-family='Arial' fill='%2300e5a0'%3E%24%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0e0f'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' font-family='Arial' fill='%2300e5a0'%3E%24%3C/text%3E%3C/svg%3E">
+
+<!-- PWA Manifest (inline) -->
+<script>
+const manifestData = {
+  name: "FluxoCaixa — Controle Financeiro",
+  short_name: "FluxoCaixa",
+  description: "Controle financeiro de vendas e compras",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#0a0e0f",
+  theme_color: "#0a0e0f",
+  orientation: "portrait-primary",
+  icons: [
+    {
+      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0e0f'/%3E%3Crect x='40' y='40' width='432' height='432' rx='80' fill='%23111618'/%3E%3Ctext x='256' y='300' font-size='220' text-anchor='middle' font-family='Arial' fill='%2300e5a0'%3E%24%3C/text%3E%3C/svg%3E",
+      sizes: "512x512",
+      type: "image/svg+xml",
+      purpose: "any maskable"
+    }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+document.addEventListener('DOMContentLoaded', () => {
+  const link = document.createElement('link');
+  link.rel = 'manifest'; link.href = manifestURL;
+  document.head.appendChild(link);
+});
+</script>
+
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -821,6 +864,55 @@ document.getElementById('selectedDate').value = today;
 document.getElementById('selectedDate').addEventListener('change', onDateChange);
 updateMonthLabels();
 startListener(currentMonth);
+</script>
+
+<!-- PWA INSTALL BANNER -->
+<div id="installBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#111618;border-top:1px solid #1e2a2d;padding:16px 20px;z-index:9998;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:42px;height:42px;background:#0a0e0f;border-radius:10px;border:1px solid #1e2a2d;display:flex;align-items:center;justify-content:center;font-size:24px">💰</div>
+    <div>
+      <div style="font-family:Syne,sans-serif;font-size:13px;font-weight:700;color:#e8f0f2">Instalar FluxoCaixa</div>
+      <div style="font-size:11px;color:#5a7a82;margin-top:2px">Adicionar à tela inicial como app</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button onclick="dismissInstall()" style="background:transparent;border:1px solid #1e2a2d;color:#8fa8b0;padding:8px 16px;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">Agora não</button>
+    <button onclick="installApp()" style="background:#00e5a0;border:none;color:#0a0e0f;padding:8px 20px;border-radius:6px;font-family:sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Instalar</button>
+  </div>
+</div>
+<script>
+if ('serviceWorker' in navigator) {
+  const swCode = `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  if (e.request.url.includes('firebase') || e.request.url.includes('googleapis')) return;
+  e.respondWith(caches.open('fc-v1').then(c => c.match(e.request).then(r => r || fetch(e.request))));
+});`;
+  try {
+    const b = new Blob([swCode], {type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(b));
+  } catch(e) {}
+}
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('installBanner').style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+});
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    document.getElementById('installBanner').style.display = 'none';
+    deferredPrompt = null;
+  });
+}
+function dismissInstall() { document.getElementById('installBanner').style.display = 'none'; }
+window.installApp = installApp;
+window.dismissInstall = dismissInstall;
 </script>
 </body>
 </html>
