@@ -55,7 +55,27 @@ document.addEventListener('DOMContentLoaded', () => {
     --accent-green: #00e5a0; --accent-red: #ff4d6d; --accent-blue: #38bdf8;
     --accent-yellow: #fbbf24; --accent-purple: #a78bfa;
     --text: #e8f0f2; --text-muted: #5a7a82; --text-dim: #8fa8b0;
+    --shadow: none;
   }
+  :root.light {
+    --bg: #f0f4f8; --surface: #ffffff; --surface2: #f5f7fa; --border: #dde3ea;
+    --accent-green: #00b37e; --accent-red: #e8324f; --accent-blue: #0284c7;
+    --accent-yellow: #d97706; --accent-purple: #7c3aed;
+    --text: #0f1923; --text-muted: #64748b; --text-dim: #475569;
+    --shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  :root.light body::before {
+    background-image: linear-gradient(rgba(0,179,126,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,179,126,0.04) 1px, transparent 1px);
+  }
+  :root.light header { background: rgba(240,244,248,0.96); }
+  :root.light .login-screen { background: var(--bg); }
+  :root.light .card { box-shadow: var(--shadow); }
+  :root.light .panel { box-shadow: var(--shadow); }
+  :root.light .table-panel { box-shadow: var(--shadow); }
+  :root.light .chart-panel { box-shadow: var(--shadow); }
+  :root.light .day-summary { box-shadow: var(--shadow); }
+  :root.light .login-box { box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+  :root.light .loading-overlay { background: rgba(240,244,248,0.9); }
   body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
   body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,229,160,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,160,0.025) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
   .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
@@ -69,6 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
   .btn-nav { background: transparent; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
   .btn-nav:hover { border-color: var(--accent-green); color: var(--accent-green); }
   .month-label { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; min-width: 160px; text-align: center; }
+
+
+  /* THEME TOGGLE */
+  .theme-toggle { background: transparent; border: 1px solid var(--border); color: var(--text-dim); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .theme-toggle:hover { border-color: var(--accent-green); transform: scale(1.05); }
 
   /* SYNC STATUS */
   .sync-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
@@ -259,6 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     <button class="btn-login" id="btnLogin" onclick="doLogin()">Entrar</button>
     <div class="login-error" id="loginError"></div>
+    <div id="loginSuccess" style="background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);color:#00e5a0;padding:10px 14px;border-radius:8px;font-size:12px;margin-top:12px;display:none;"></div>
+    <div style="text-align:center;margin-top:16px;">
+      <button onclick="showForgot()" style="background:transparent;border:none;color:#5a7a82;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;text-decoration:underline;">Esqueci minha senha</button>
+    </div>
     <div class="login-footer">FluxoCaixa · Dados protegidos pelo Firebase 🔒</div>
   </div>
 </div>
@@ -283,6 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <span id="userEmail"></span>
           <button class="btn-logout" onclick="doLogout()">Sair</button>
         </div>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Alternar tema">🌙</button>
         <div class="month-nav">
           <button class="btn-nav" onclick="changeMonth(-1)">‹</button>
           <div class="month-label" id="monthLabel">—</div>
@@ -503,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ── FIREBASE CONFIG ────────────────────────────────────────────────
 const firebaseConfig = {
@@ -906,6 +936,50 @@ function showToast(icon, msg, isPos, type='') {
 }
 
 
+
+// ── FORGOT PASSWORD ────────────────────────────────────────────────
+function showForgot() {
+  const modal = document.getElementById('forgotModal');
+  modal.style.display = 'flex';
+  document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value;
+  document.getElementById('forgotError').style.display = 'none';
+  document.getElementById('forgotSuccess').style.display = 'none';
+  document.getElementById('btnForgot').disabled = false;
+  document.getElementById('btnForgot').textContent = 'Enviar E-mail';
+  setTimeout(() => document.getElementById('forgotEmail').focus(), 100);
+}
+function hideForgot() {
+  document.getElementById('forgotModal').style.display = 'none';
+}
+async function doForgot() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errEl = document.getElementById('forgotError');
+  const sucEl = document.getElementById('forgotSuccess');
+  const btn = document.getElementById('btnForgot');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+  if (!email) { errEl.textContent = 'Digite seu e-mail.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await sendPasswordResetEmail(auth, email);
+    sucEl.textContent = '✓ E-mail enviado! Verifique sua caixa de entrada e spam.';
+    sucEl.style.display = 'block';
+    btn.textContent = 'Enviado ✓';
+    setTimeout(() => hideForgot(), 4000);
+  } catch(e) {
+    let msg = 'Erro ao enviar. Verifique o e-mail digitado.';
+    if (e.code === 'auth/user-not-found') msg = 'E-mail não encontrado no sistema.';
+    if (e.code === 'auth/invalid-email') msg = 'E-mail inválido.';
+    if (e.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Tente mais tarde.';
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Enviar E-mail';
+  }
+}
+window.showForgot = showForgot;
+window.hideForgot = hideForgot;
+window.doForgot = doForgot;
+
 // ── AUTH ───────────────────────────────────────────────────────────
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
@@ -936,6 +1010,10 @@ window.doLogout = doLogout;
 
 // Enter key on login
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('forgotEmail').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doForgot();
+    if (e.key === 'Escape') hideForgot();
+  });
   document.getElementById('loginPassword').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
   });
@@ -968,6 +1046,26 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 </script>
+
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgotModal" style="display:none;position:fixed;inset:0;background:rgba(10,14,15,0.9);z-index:10000;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#111618;border:1px solid #1e2a2d;border-radius:16px;padding:36px;width:100%;max-width:380px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#38bdf8,#00e5a0);"></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;margin-bottom:6px;">Redefinir Senha</div>
+    <div style="font-size:11px;color:#5a7a82;margin-bottom:24px;letter-spacing:1px;">Digite seu e-mail para receber o link de redefinição</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+      <label style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a7a82;">E-mail</label>
+      <input type="email" id="forgotEmail" placeholder="seu@email.com" style="background:#161d1f;border:1px solid #1e2a2d;color:#e8f0f2;padding:12px 14px;font-family:'DM Mono',monospace;font-size:14px;border-radius:8px;outline:none;width:100%;">
+    </div>
+    <div id="forgotError" style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);color:#ff4d6d;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:12px;display:none;"></div>
+    <div id="forgotSuccess" style="background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);color:#00e5a0;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:12px;display:none;"></div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button onclick="hideForgot()" style="flex:1;padding:12px;background:transparent;border:1px solid #1e2a2d;color:#8fa8b0;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;">Cancelar</button>
+      <button onclick="doForgot()" id="btnForgot" style="flex:2;padding:12px;background:#38bdf8;border:none;color:#0a0e0f;border-radius:8px;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;cursor:pointer;">Enviar E-mail</button>
+    </div>
+  </div>
+</div>
 
 <!-- PWA INSTALL BANNER -->
 <div id="installBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#111618;border-top:1px solid #1e2a2d;padding:16px 20px;z-index:9998;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -1014,6 +1112,28 @@ function installApp() {
   });
 }
 function dismissInstall() { document.getElementById('installBanner').style.display = 'none'; }
+
+// ── THEME ──────────────────────────────────────────────────────────
+function toggleTheme() {
+  const root = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  const isLight = root.classList.toggle('light');
+  btn.textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('fc_theme', isLight ? 'light' : 'dark');
+}
+// Load saved theme
+(function() {
+  const saved = localStorage.getItem('fc_theme');
+  if (saved === 'light') {
+    document.documentElement.classList.add('light');
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('themeToggle');
+      if (btn) btn.textContent = '☀️';
+    });
+  }
+})();
+window.toggleTheme = toggleTheme;
+
 window.installApp = installApp;
 window.dismissInstall = dismissInstall;
 </script>
