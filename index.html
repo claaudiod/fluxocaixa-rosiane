@@ -610,6 +610,7 @@ footer { border-top: 1px solid var(--border); padding: 20px 0; text-align: cente
     <button class="tab active" onclick="showPage('lancamentos')">📝 Lançamentos</button>
     <button class="tab" onclick="showPage('historico')">📅 Histórico do Mês</button>
     <button class="tab" onclick="showPage('resumo')">📊 Resumo Mensal</button>
+    <button class="tab" onclick="showPage('produtos')">🏷️ Produtos & Fornecedores</button>
   </div>
 
   <!-- PAGE: LANÇAMENTOS -->
@@ -677,8 +678,18 @@ footer { border-top: 1px solid var(--border); padding: 20px 0; text-align: cente
           <div class="panel-title" style="color:var(--green)">Entrada — Venda</div>
         </div>
         <div class="panel-body">
-          <div class="form-row"><label>Descrição / Produto</label><input type="text" id="v_desc" placeholder="Ex: Produto X, Serviço Y..."></div>
-          <div class="form-row"><label>Valor (R$)</label><input type="number" id="v_valor" placeholder="0,00" step="0.01" min="0"></div>
+          <div class="form-row">
+            <label>Produto</label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="v_desc" placeholder="Digite para buscar ou escreva..." autocomplete="off" oninput="onAutoInput('v')" onblur="hideAuto('v')" onfocus="onAutoInput('v')">
+              <div class="autocomplete-list" id="v_auto" style="display:none"></div>
+            </div>
+          </div>
+          <div class="qty-row">
+            <div class="form-row"><label>Preço Unitário (R$)</label><input type="number" id="v_valor" placeholder="0,00" step="0.01" min="0" oninput="calcTotal('v')"></div>
+            <div class="form-row"><label>Quantidade</label><input type="number" id="v_qty" placeholder="1" min="1" value="1" oninput="calcTotal('v')"></div>
+            <div class="qty-total" id="v_total">R$ 0,00</div>
+          </div>
           <div class="form-row"><label>Categoria</label><select id="v_cat"><option>Varejo</option><option>Atacado</option><option>Serviço</option><option>Online</option><option>Outro</option></select></div>
           <div class="form-row"><label>Observação</label><textarea id="v_obs" placeholder="Nota opcional..."></textarea></div>
           <button class="btn-submit btn-venda" id="btnVenda" onclick="addLancamento('venda')">+ Registrar Venda</button>
@@ -690,8 +701,18 @@ footer { border-top: 1px solid var(--border); padding: 20px 0; text-align: cente
           <div class="panel-title" style="color:var(--red)">Saída — Compra</div>
         </div>
         <div class="panel-body">
-          <div class="form-row"><label>Descrição / Fornecedor</label><input type="text" id="c_desc" placeholder="Ex: Estoque, Fornecedor Z..."></div>
-          <div class="form-row"><label>Valor (R$)</label><input type="number" id="c_valor" placeholder="0,00" step="0.01" min="0"></div>
+          <div class="form-row">
+            <label>Fornecedor / Item</label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="c_desc" placeholder="Digite para buscar ou escreva..." autocomplete="off" oninput="onAutoInput('c')" onblur="hideAuto('c')" onfocus="onAutoInput('c')">
+              <div class="autocomplete-list" id="c_auto" style="display:none"></div>
+            </div>
+          </div>
+          <div class="qty-row">
+            <div class="form-row"><label>Preço Unitário (R$)</label><input type="number" id="c_valor" placeholder="0,00" step="0.01" min="0" oninput="calcTotal('c')"></div>
+            <div class="form-row"><label>Quantidade</label><input type="number" id="c_qty" placeholder="1" min="1" value="1" oninput="calcTotal('c')"></div>
+            <div class="qty-total" id="c_total" style="color:var(--red);background:var(--red-soft);border-color:rgba(244,99,122,0.3)">R$ 0,00</div>
+          </div>
           <div class="form-row"><label>Categoria</label><select id="c_cat"><option>Estoque</option><option>Fornecedor</option><option>Operacional</option><option>Frete</option><option>Outro</option></select></div>
           <div class="form-row"><label>Observação</label><textarea id="c_obs" placeholder="Nota opcional..."></textarea></div>
           <button class="btn-submit btn-compra" id="btnCompra" onclick="addLancamento('compra')">− Registrar Compra</button>
@@ -710,7 +731,7 @@ footer { border-top: 1px solid var(--border); padding: 20px 0; text-align: cente
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Hora</th><th>Tipo</th><th>Descrição</th><th>Categoria</th><th>Obs</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+          <thead><tr><th>Hora</th><th>Tipo</th><th>Descrição</th><th>Qtd</th><th>Categoria</th><th>Obs</th><th style="text-align:right">Total</th><th></th></tr></thead>
           <tbody id="tableBody"></tbody>
         </table>
         <div id="emptyState" class="empty-state">
@@ -795,6 +816,61 @@ footer { border-top: 1px solid var(--border); padding: 20px 0; text-align: cente
       <div class="panel-body" id="catComprasPanel"><div style="color:var(--text-3);font-size:13px">Sem dados.</div></div>
     </div>
   </div>
+  <!-- PAGE: PRODUTOS & FORNECEDORES -->
+  <div class="page" id="page-produtos">
+
+    <div class="main-grid">
+      <!-- CADASTRO PRODUTO -->
+      <div>
+        <p class="section-title">Cadastrar Produto (Vendas)</p>
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header">
+            <div class="panel-dot dot-green"></div>
+            <div class="panel-title" style="color:var(--green)">Novo Produto</div>
+          </div>
+          <div class="panel-body">
+            <div class="form-row"><label>Nome do Produto</label><input type="text" id="np_nome" placeholder="Ex: Camisa Polo, Serviço X..."></div>
+            <div class="form-row"><label>Preço de Venda (R$)</label><input type="number" id="np_preco" placeholder="0,00" step="0.01" min="0"></div>
+            <div class="form-row"><label>Categoria</label>
+              <select id="np_cat"><option>Varejo</option><option>Atacado</option><option>Serviço</option><option>Online</option><option>Outro</option></select>
+            </div>
+            <button class="btn-submit btn-venda" onclick="salvarProduto()">+ Salvar Produto</button>
+          </div>
+        </div>
+
+        <p class="section-title">Produtos Cadastrados</p>
+        <div id="listaProdutos">
+          <div class="empty-state" style="padding:30px"><div class="empty-icon">📦</div><div>Nenhum produto cadastrado ainda.</div></div>
+        </div>
+      </div>
+
+      <!-- CADASTRO FORNECEDOR -->
+      <div>
+        <p class="section-title">Cadastrar Fornecedor (Compras)</p>
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header">
+            <div class="panel-dot dot-red"></div>
+            <div class="panel-title" style="color:var(--red)">Novo Fornecedor</div>
+          </div>
+          <div class="panel-body">
+            <div class="form-row"><label>Nome do Fornecedor / Item</label><input type="text" id="nf_nome" placeholder="Ex: Fornecedor ABC, Aluguel..."></div>
+            <div class="form-row"><label>Preço de Custo (R$)</label><input type="number" id="nf_preco" placeholder="0,00" step="0.01" min="0"></div>
+            <div class="form-row"><label>Categoria</label>
+              <select id="nf_cat"><option>Estoque</option><option>Fornecedor</option><option>Operacional</option><option>Frete</option><option>Outro</option></select>
+            </div>
+            <button class="btn-submit btn-compra" onclick="salvarFornecedor()">+ Salvar Fornecedor</button>
+          </div>
+        </div>
+
+        <p class="section-title">Fornecedores Cadastrados</p>
+        <div id="listaFornecedores">
+          <div class="empty-state" style="padding:30px"><div class="empty-icon">🏭</div><div>Nenhum fornecedor cadastrado ainda.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 </div>
 
 <footer>
@@ -837,7 +913,7 @@ footer { border-top: 1px solid var(--border); padding: 20px 0; text-align: cente
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ── FIREBASE CONFIG ────────────────────────────────────────────────
@@ -946,8 +1022,9 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   const tabs = document.querySelectorAll('.tab');
-  ['lancamentos','historico','resumo'].forEach((p,i) => tabs[i].classList.toggle('active', p === page));
+  ['lancamentos','historico','resumo','produtos'].forEach((p,i) => tabs[i].classList.toggle('active', p === page));
   renderAll();
+  if (page === 'produtos') renderProdutos();
 }
 window.showPage = showPage;
 
@@ -974,11 +1051,13 @@ function onDateChange() {
 async function addLancamento(tipo) {
   const p = tipo === 'venda' ? 'v' : 'c';
   const desc = document.getElementById(p+'_desc').value.trim();
-  const valor = parseFloat(document.getElementById(p+'_valor').value);
+  const precoUnit = parseFloat(document.getElementById(p+'_valor').value);
+  const qty = parseInt(document.getElementById(p+'_qty').value) || 1;
+  const valor = parseFloat((precoUnit * qty).toFixed(2));
   const cat = document.getElementById(p+'_cat').value;
   const obs = document.getElementById(p+'_obs').value.trim();
   if (!desc) { showToast('⚠', 'Informe uma descrição.', false); return; }
-  if (!valor || valor <= 0) { showToast('⚠', 'Informe um valor válido.', false); return; }
+  if (!precoUnit || precoUnit <= 0) { showToast('⚠', 'Informe um valor válido.', false); return; }
 
   const btnId = tipo === 'venda' ? 'btnVenda' : 'btnCompra';
   document.getElementById(btnId).disabled = true;
@@ -989,14 +1068,16 @@ async function addLancamento(tipo) {
 
   try {
     await addDoc(collection(db, 'lancamentos'), {
-      tipo, desc, valor, cat, obs, hora,
+      tipo, desc, valor, precoUnit, qty, cat, obs, hora,
       date: currentDate,
       month: currentMonth,
       timestamp: now.getTime()
     });
     document.getElementById(p+'_desc').value = '';
     document.getElementById(p+'_valor').value = '';
+    document.getElementById(p+'_qty').value = '1';
     document.getElementById(p+'_obs').value = '';
+    calcTotal(p);
     showToast(tipo==='venda'?'✓':'−',
       tipo==='venda' ? `Venda de ${fmtBRL(valor)} registrada!` : `Compra de ${fmtBRL(valor)} registrada!`,
       tipo==='venda');
@@ -1111,7 +1192,8 @@ function renderTable() {
     <tr>
       <td style="color:var(--text-2)">${item.hora}</td>
       <td><span class="tag tag-${item.tipo}">${item.tipo==='venda'?'▲ Venda':'▼ Compra'}</span></td>
-      <td>${item.desc}</td>
+      <td style="font-weight:500">${item.desc}</td>
+      <td style="color:var(--text-2);text-align:center">${item.qty > 1 ? item.qty + 'x' : '—'}</td>
       <td style="color:var(--text-3)">${item.cat}</td>
       <td style="color:var(--text-2);font-size:11px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.obs||'—'}</td>
       <td style="text-align:right"><span class="val-${item.tipo}">${item.tipo==='venda'?'+':'−'} ${fmtBRL(item.valor)}</span></td>
@@ -1327,6 +1409,140 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+
+// ── PRODUTOS & FORNECEDORES ────────────────────────────────────────
+let produtos = [];
+let fornecedores = [];
+
+async function loadCadastros() {
+  if (!auth.currentUser) return;
+  try {
+    const [pSnap, fSnap] = await Promise.all([
+      getDocs(collection(db, 'produtos')),
+      getDocs(collection(db, 'fornecedores'))
+    ]);
+    produtos = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    fornecedores = fSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { console.error('Erro ao carregar cadastros:', e); }
+}
+
+async function salvarProduto() {
+  const nome = document.getElementById('np_nome').value.trim();
+  const preco = parseFloat(document.getElementById('np_preco').value);
+  const cat = document.getElementById('np_cat').value;
+  if (!nome) { showToast('⚠', 'Informe o nome do produto.', false); return; }
+  if (!preco || preco <= 0) { showToast('⚠', 'Informe o preço.', false); return; }
+  try {
+    await addDoc(collection(db, 'produtos'), { nome, preco, cat, ts: Date.now() });
+    document.getElementById('np_nome').value = '';
+    document.getElementById('np_preco').value = '';
+    await loadCadastros();
+    renderProdutos();
+    showToast('✓', `Produto "${nome}" salvo!`, true);
+  } catch(e) { showToast('⚠', 'Erro ao salvar produto.', false, 'e'); }
+}
+window.salvarProduto = salvarProduto;
+
+async function salvarFornecedor() {
+  const nome = document.getElementById('nf_nome').value.trim();
+  const preco = parseFloat(document.getElementById('nf_preco').value);
+  const cat = document.getElementById('nf_cat').value;
+  if (!nome) { showToast('⚠', 'Informe o nome do fornecedor.', false); return; }
+  if (!preco || preco <= 0) { showToast('⚠', 'Informe o preço.', false); return; }
+  try {
+    await addDoc(collection(db, 'fornecedores'), { nome, preco, cat, ts: Date.now() });
+    document.getElementById('nf_nome').value = '';
+    document.getElementById('nf_preco').value = '';
+    await loadCadastros();
+    renderProdutos();
+    showToast('✓', `Fornecedor "${nome}" salvo!`, true);
+  } catch(e) { showToast('⚠', 'Erro ao salvar fornecedor.', false, 'e'); }
+}
+window.salvarFornecedor = salvarFornecedor;
+
+async function deleteProduto(id, tipo) {
+  if (!confirm('Excluir este cadastro?')) return;
+  try {
+    await deleteDoc(doc(db, tipo, id));
+    await loadCadastros();
+    renderProdutos();
+    showToast('✓', 'Removido com sucesso.', true);
+  } catch(e) { showToast('⚠', 'Erro ao excluir.', false, 'e'); }
+}
+window.deleteProduto = deleteProduto;
+
+function renderProdutos() {
+  function renderList(lista, elId, tipo, corClass) {
+    const el = document.getElementById(elId);
+    if (!lista.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:30px"><div class="empty-icon">${tipo==='produtos'?'📦':'🏭'}</div><div>Nenhum cadastro ainda.</div></div>`;
+      return;
+    }
+    el.innerHTML = lista.sort((a,b) => a.nome.localeCompare(b.nome)).map(item => `
+      <div class="produto-card">
+        <div class="produto-info">
+          <div class="produto-nome">${item.nome}</div>
+          <div class="produto-meta">${item.cat}</div>
+        </div>
+        <div class="produto-preco ${corClass}">${fmtBRL(item.preco)}</div>
+        <button class="btn-del" onclick="deleteProduto('${item.id}','${tipo}')">Excluir</button>
+      </div>`).join('');
+  }
+  renderList(produtos, 'listaProdutos', 'produtos', '');
+  renderList(fornecedores, 'listaFornecedores', 'fornecedores', 'compra');
+}
+
+// ── AUTOCOMPLETE ───────────────────────────────────────────────────
+function onAutoInput(p) {
+  const input = document.getElementById(p+'_desc');
+  const list = document.getElementById(p+'_auto');
+  const val = input.value.toLowerCase().trim();
+  const source = p === 'v' ? produtos : fornecedores;
+  const filtered = val
+    ? source.filter(i => i.nome.toLowerCase().includes(val))
+    : source;
+  if (!filtered.length) { list.style.display = 'none'; return; }
+  list.innerHTML = filtered.slice(0,8).map(item => `
+    <div class="autocomplete-item" onmousedown="selectAuto('${p}','${item.nome.replace(/'/g,"\'")}',${item.preco},'${item.cat}')">
+      <div>
+        <div class="autocomplete-item-name">${item.nome}</div>
+        <div class="autocomplete-item-cat">${item.cat}</div>
+      </div>
+      <div class="autocomplete-item-price">${fmtBRL(item.preco)}</div>
+    </div>`).join('');
+  list.style.display = 'block';
+}
+window.onAutoInput = onAutoInput;
+
+function selectAuto(p, nome, preco, cat) {
+  document.getElementById(p+'_desc').value = nome;
+  document.getElementById(p+'_valor').value = preco.toFixed(2);
+  // Set category
+  const catEl = document.getElementById(p+'_cat');
+  for (let o of catEl.options) { if (o.value === cat) { catEl.value = cat; break; } }
+  document.getElementById(p+'_auto').style.display = 'none';
+  calcTotal(p);
+  document.getElementById(p+'_qty').focus();
+}
+window.selectAuto = selectAuto;
+
+function hideAuto(p) {
+  setTimeout(() => {
+    const el = document.getElementById(p+'_auto');
+    if (el) el.style.display = 'none';
+  }, 200);
+}
+window.hideAuto = hideAuto;
+
+// ── CALC TOTAL ─────────────────────────────────────────────────────
+function calcTotal(p) {
+  const preco = parseFloat(document.getElementById(p+'_valor').value) || 0;
+  const qty = parseInt(document.getElementById(p+'_qty').value) || 1;
+  const total = preco * qty;
+  document.getElementById(p+'_total').textContent = fmtBRL(total);
+}
+window.calcTotal = calcTotal;
+
 // ── INIT ───────────────────────────────────────────────────────────
 onAuthStateChanged(auth, (user) => {
   const loginScreen = document.getElementById('loginScreen');
@@ -1342,6 +1558,7 @@ onAuthStateChanged(auth, (user) => {
     document.getElementById('selectedDate').addEventListener('change', onDateChange);
     updateMonthLabels();
     startListener(currentMonth);
+    loadCadastros();
   } else {
     // Not logged in
     loginScreen.classList.remove('hidden');
